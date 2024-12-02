@@ -71,7 +71,10 @@ let rec list_of_nodes lst depth =
   else let children = children_of_nodes lst in
     lst :: list_of_nodes children (depth - 1)
 
-let lines_of_nodes (x: (int * 'a option) tree list) depth : (int * 'a element) list list = let first_line = generate_first_line x in first_line :: generate_lines first_line (depth - 1)
+let lines_of_nodes (x: (int * 'a option) tree list) depth : (int * 'a element) list list = match x with
+  | (item::_) -> let first_line = generate_first_line x in first_line :: generate_lines first_line (get_depth item - 1)
+  | _ -> []
+  
 
 let rec concat (lst : 'a list list) : 'a list = match lst with
   | [] -> []
@@ -145,5 +148,7 @@ end
 
 
 let lines = get_lines root;;
+
+RedBlackData.print @@ RedBlackData.test_data ();;
 
 CharData.print @@ CharData.test_data ();;
