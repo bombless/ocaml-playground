@@ -28,16 +28,13 @@ let rec all_leaf = function
 
 let rec get_padding_tree (t : 'a tree) carry : (int * 'a) tree = match t with
   | Leaf -> Leaf
-  | Node (v, l, r) as x -> Node ((carry + padding x, v), get_padding_tree l carry, get_padding_tree r (carry + 1))
+  | Node (v, l, r) as x -> Node ((carry + padding x, v), get_padding_tree l carry, get_padding_tree r carry)
 
-let rec draw_nodes (line : (int * char) list) = match line with
-  | [] -> print_char('\n')
-  | ((p, c)::t) -> print_string(String.make p ' '); print_char(c); draw_nodes(t);;
 
-let rec generate_first_line (lst : ('a option tree list)) = match lst with
+let rec generate_first_line (lst : ((int * 'a option) tree list)) = match lst with
   | [] -> []
-  | (Node (Some c, _, _) as x::t) -> (padding x, VisibleNode c) :: generate_first_line t
-  | (Node (None, _, _) as x::t) -> (padding x, VirtualNode) :: generate_first_line t
+  | (Node ((p, Some c), _, _) as x::t) -> (p, VisibleNode c) :: generate_first_line t
+  | (Node ((p, None), _, _) as x::t) -> (p, VirtualNode) :: generate_first_line t
   | (Leaf::t) -> generate_first_line t
 
 let rec generate_next_line (line: (int * 'a element) list) : (int * 'a element) list = match line with
@@ -74,7 +71,7 @@ let rec list_of_nodes lst depth =
   else let children = children_of_nodes lst in
     lst :: list_of_nodes children (depth - 1)
 
-let lines_of_nodes (x: 'a option tree list) depth : (int * 'a element) list list = let first_line = generate_first_line x in first_line :: generate_lines first_line (depth - 1)
+let lines_of_nodes (x: (int * 'a option) tree list) depth : (int * 'a element) list list = let first_line = generate_first_line x in first_line :: generate_lines first_line (depth - 1)
 
 let rec concat (lst : 'a list list) : 'a list = match lst with
   | [] -> []
@@ -82,25 +79,71 @@ let rec concat (lst : 'a list list) : 'a list = match lst with
 
 let get_lines t : (int * 'a element) list list =
   let depth = get_depth t in
-  let lists = list_of_nodes [as_full_tree t depth] depth in
+  let lists = list_of_nodes [get_padding_tree (as_full_tree t depth) 0] depth in
   concat @@ List.map (fun x -> lines_of_nodes x depth) lists
 
-let rec print_line = function
-  | [] -> print_char '\n'
-  | ((n, VisibleNode c)::t) -> print_string (String.make n ' '); print_char c; print_line t
-  | ((n, VisibleLeft)::t) -> print_string (String.make n ' '); print_char '/'; print_line t
-  | ((n, VisibleRight)::t) -> print_string (String.make n ' '); print_char '\\'; print_line t
-  | ((n, _)::t) -> print_string (String.make n ' '); print_char ' '; print_line t
-;;
 
-let rec print = function
-  | [] -> ()
-  | (h::t) -> print_line h; print t;;
+
+module type Data = sig
+  type t
+
+  val test_data: unit -> t tree
+
+  val put: t -> unit
+
+  val print: t tree -> unit
+end
+
+
+module Print(Data: Data) = struct
+  let rec print_line = function
+    | [] -> print_char '\n'
+    | ((n, VisibleNode c)::t) -> print_string (String.make n ' '); Data.put c; print_char ' '; print_line t
+    | ((n, VisibleLeft)::t) -> print_string (String.make n ' '); print_char '/'; print_line t
+    | ((n, VisibleRight)::t) -> print_string (String.make n ' '); print_char '\\'; print_line t
+    | ((n, _)::t) -> print_string (String.make n ' '); print_char ' '; print_line t
+  ;;
+  let rec print_helper = function
+    | [] -> ()
+    | (h::t) -> print_line h; print_helper t;;
+  let print x = print_helper @@ get_lines x
+end
+
+
+module rec RedBlackData : Data = struct
+  type t = color * char
+  let test_data (_: unit) = root
+  let red_text = "\027[31m"
+  let green_text = "\027[32m"
+  let reset_color = "\027[0m"
+  let put = function
+    | (Red, c) -> Printf.printf "%s%c%s" red_text c reset_color
+    | (_, c) -> print_char(c)
+  include Print(RedBlackData)
+end
+
 
 let rec clean_tree = function
   | Leaf -> Leaf
   | Node ((_, x), l, r) -> Node (x, clean_tree l, clean_tree r)
 
-let lines = get_lines @@ clean_tree root
 
-let p (_: unit) = print @@ get_lines @@ clean_tree root
+let a = Node ('A', Leaf, Leaf)
+let c = Node ('C', Leaf, Leaf)
+let e = Node ('E', Leaf, Leaf)
+let g = Node ('G', Leaf, Leaf)
+let b = Node ('B', a, c)
+let f = Node ('F', e, g)
+let d = Node('D', b, f)
+
+module rec CharData : Data = struct
+  type t = char
+  let test_data (_: unit) = d
+  let put = print_char
+  include Print(CharData)
+end
+
+
+let lines = get_lines root;;
+
+CharData.print @@ CharData.test_data ();;
