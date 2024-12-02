@@ -1,0 +1,114 @@
+% 数据表示
+array([
+    ["露娜", "周瑜", "鲁班大师"],
+    ["李白", "百里守约", "元歌"],
+    ["云樱", "耀", "雅典娜", "司马懿", "裴擒虎", "暃", "橘右京"],
+    ["阿柯", "蒙犽", "周瑜"],
+    ["孙悟空", "朵莉亚"],
+    ["周瑜", "朵莉亚", "海诺", "明世隐"],
+    ["周瑜", "朵莉亚", "海诺", "明世隐"],
+    ["暃", "蒙犽", "白起", "哪吒"],
+    ["盘古", "白起", "孙悟空"],
+    ["伽罗", "李白", "女娲"],
+    ["耀", "干将莫邪", "伽罗", "花木兰", "太乙真人"],
+    ["百里守约", "干将莫邪", "扁鹊"],
+    ["露娜"]
+]).
+
+% 元素是否存在
+exists(X, [X|_]).
+exists(X, [_|T]) :- exists(X, T).
+
+% 获取索引对应的元素
+select_nth(0, [H|_], H).
+select_nth(N, [_|T], X) :-
+    N > 0,
+    N1 is N - 1,
+    select_nth(N1, T, X).
+
+% 拼接两个列表
+my_append([], L, L).
+my_append([H|T], L, [H|R]) :- my_append(T, L, R).
+
+% 获取前 N 个元素
+previous(0, _, []).
+previous(N, [H|T], [H|R]) :-
+    N > 0,
+    N1 is N - 1,
+    previous(N1, T, R).
+
+% 获取后 N 个元素
+afterwards(0, L, L).
+afterwards(_, [], []).
+afterwards(N, [_|T], R) :-
+    N > 0,
+    N1 is N - 1,
+    afterwards(N1, T, R).
+
+% 计算下一个选择
+next_choice_helper(Curr, Line, Result) :-
+    array(Array),
+    length(Array, MaxLine),
+    Line < MaxLine,
+    select_nth(Line, Curr, CurrIndex),
+    select_nth(Line, Array, Row),
+    length(Row, RowLength),
+    (
+        CurrIndex + 1 < RowLength
+        -> select_nth(Line, NewCurr, CurrIndex + 1),
+           Result = NewCurr
+        ;  my_append(Previous, [0|Rest], Curr),
+           length(Previous, Line),
+           NewLine is Line + 1,
+           next_choice_helper([0|Rest], NewLine, Result)
+    ).
+
+next_choice(Curr, Next) :-
+    next_choice_helper(Curr, 0, Next).
+
+% 显示当前选择
+show_helper([], [], "").
+show_helper([H|T], [Row|Rows], Result) :-
+    select_nth(H, Row, Hero),
+    show_helper(T, Rows, RestResult),
+    string_concat(Hero, "; ", HeroResult),
+    string_concat(HeroResult, RestResult, Result).
+
+% 初始选择
+zeros(0, []).
+zeros(N, [0|T]) :-
+    N > 0,
+    N1 is N - 1,
+    zeros(N1, T).
+
+initial(Initial) :-
+    array(Array),
+    length(Array, Length),
+    zeros(Length, Initial).
+
+% 所有英雄
+all_heroes(Heroes) :-
+    array(Array),
+    foldl(my_append, Array, [], AllHeroes),
+    sort(AllHeroes, Heroes).
+
+% 过滤出所有选择
+filter_all_exists([], _, []).
+filter_all_exists([H|T], Choices, [H|Result]) :-
+    exists_in_all_choices(H, Choices),
+    filter_all_exists(T, Choices, Result).
+filter_all_exists([_|T], Choices, Result) :-
+    filter_all_exists(T, Choices, Result).
+
+exists_in_all_choices(_, []).
+exists_in_all_choices(Hero, [Choice|Rest]) :-
+    exists(Hero, Choice),
+    exists_in_all_choices(Hero, Rest).
+
+% 主程序
+main :-
+    initial(Initial),
+    all_choices([Initial], Choices),
+    all_heroes(Heroes),
+    filter_all_exists(Heroes, Choices, Result),
+    maplist(writeln, Result).
