@@ -121,7 +121,7 @@ let get_lines t : (int * 'a element) list list =
 module type Data = sig
   type t
 
-  val test_data: unit -> t tree
+  val dataset: int -> t tree
 
   val put: t -> unit
 
@@ -146,7 +146,7 @@ end
 
 module rec RedBlackData : Data = struct
   type t = color * char
-  let test_data (_: unit) = root
+  let dataset = fun i -> [|root|].(i)
   let red_text = "\027[31m"
   let green_text = "\027[32m"
   let reset_color = "\027[0m"
@@ -161,37 +161,66 @@ let rec clean_tree = function
   | Leaf -> Leaf
   | Node ((_, x), l, r) -> Node (x, clean_tree l, clean_tree r)
 
+let big_tree =
+  let a = Node ('A', Leaf, Leaf) in
+  let c = Node ('C', Leaf, Leaf) in
+  let e = Node ('E', Leaf, Leaf) in
+  let g = Node ('G', Leaf, Leaf) in
+  let b = Node ('B', a, c) in
+  let f = Node ('F', e, g) in
+  let d = Node ('D', b, f) in
+  d
 
-let a = Node ('A', Leaf, Leaf)
-let c = Node ('C', Leaf, Leaf)
-let e = Node ('E', Leaf, Leaf)
-let g = Node ('G', Leaf, Leaf)
-let b = Node ('B', a, c)
-let f = Node ('F', e, g)
-let d = Node('D', b, f)
+let leaf c = Node (c, Leaf, Leaf)
+let node c l r = Node (c, l, r)
 
-
-
+let big_big_tree =
+  let n0 = leaf '0' in
+  let n2 = leaf '2' in
+  let n4 = leaf '4' in
+  let n6 = leaf '6' in
+  let n8 = leaf '8' in
+  let na = leaf 'A' in
+  let nc = leaf 'C' in
+  let ne = leaf 'E' in
+  let ng = leaf 'G' in
+  let ni = leaf 'I' in
+  let nk = leaf 'K' in
+  let nm = leaf 'M' in
+  let no = leaf 'O' in
+  let nq = leaf 'Q' in
+  let ns = leaf 'S' in
+  let nu = leaf 'U' in
+  let n1 = node '1' n0 n2 in
+  let n5 = node '5' n4 n6 in
+  let n9 = node '9' n8 na in
+  let nd = node 'D' nc ne in
+  let n3 = node '3' n1 n5 in
+  let nb = node 'B' n9 nd in
+  let n7 = node '7' n3 nb in
+  let nh = node 'H' ng ni in
+  let nl = node 'L' nk nm in
+  let nj = node 'J' nh nl in
+  let np = node 'P' no nq in
+  let nt = node 'T' ns nu in
+  let nj = node 'J' nh nl in
+  let nr = node 'R' np nt in
+  let nn = node 'N' nj nr in
+  let nf = node 'F' n7 nn in
+  nf
 
 module rec CharData : Data = struct
   type t = char
-  let test_data (_: unit) = d
+  let dataset = fun i -> [|big_tree; big_big_tree|].(i)
   let put = print_char
   include Print(CharData)
 end;;
 
 
-RedBlackData.print @@ RedBlackData.test_data ();;
+RedBlackData.print @@ RedBlackData.dataset 0;;
 
-CharData.print @@ CharData.test_data ();;
+CharData.print @@ CharData.dataset 0;;
+
+CharData.print @@ CharData.dataset 1;;
 
 
-let rec print_line = function
-  | [] -> print_char '\n'
-  | ((n, VisibleNode c)::t) -> print_string (String.make n ' '); print_char c; print_line t
-  | ((n, VisibleLeft)::t) -> print_string (String.make n ' '); print_char '/'; print_line t
-  | ((n, VisibleRight)::t) -> print_string (String.make n ' '); print_char '\\'; print_line t
-  | ((n, _)::t) -> print_string (String.make n ' '); print_char ' '; print_line t
-;;
-
-let list = list_of_nodes [get_padding_tree (as_full_tree f 2) 2 true true] 2
