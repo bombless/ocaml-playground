@@ -105,21 +105,14 @@ let get_lines t : (int * 'a element) list list =
   let lists = list_of_nodes [get_padding_tree (as_full_tree t depth) depth true true] depth in
   concat @@ List.map lines_of_nodes lists
 
-module type Data = sig
+module Printer (Tree : sig
   type t
-
-  val dataset: int -> t tree
-
-  val put: t -> unit
-
-  val print: t tree -> unit
-end
-
-
-module Print(Data: Data) = struct
+  val print_node : t -> unit
+end) =
+struct
   let rec print_line = function
     | [] -> print_char '\n'
-    | ((n, VisibleNode c)::t) -> print_string (String.make n ' '); Data.put c; print_line t
+    | ((n, VisibleNode c)::t) -> print_string (String.make n ' '); Tree.print_node c; print_line t
     | ((n, VisibleLeft)::t) -> print_string (String.make n ' '); print_char '/'; print_line t
     | ((n, VisibleRight)::t) -> print_string (String.make n ' '); print_char '\\'; print_line t
     | ((n, _)::t) -> print_string (String.make n ' '); print_char ' '; print_line t
@@ -130,19 +123,19 @@ module Print(Data: Data) = struct
   let print x = print_helper @@ get_lines x
 end
 
-
-module rec RedBlackData : Data = struct
+module RedBlackTree = Printer (struct
   type t = color * char
-  let dataset = fun i -> [|root|].(i)
   let red_text = "\027[31m"
-  let green_text = "\027[32m"
-  let reset_color = "\027[0m"
-  let put = function
+  let reset_color = "\027[0m" 
+  let print_node = function
     | (Red, c) -> Printf.printf "%s%c%s" red_text c reset_color
     | (_, c) -> print_char(c)
-  include Print(RedBlackData)
-end
+end);;
 
+module CharTree = Printer (struct
+  type t = char
+  let print_node = print_char
+end);;
 
 let rec clean_tree = function
   | Leaf -> Leaf
@@ -194,19 +187,18 @@ let big_big_tree =
   let nn = node 'N' nj nr in
   let nf = node 'F' n7 nn in
   nf
+;;
 
-module rec CharData : Data = struct
-  type t = char
-  let dataset = fun i -> [|big_tree; big_big_tree|].(i)
-  let put = print_char
-  include Print(CharData)
-end;;
+CharTree.print big_tree;;
+CharTree.print big_big_tree;;
+RedBlackTree.print root;;
 
+let data = Node ((Red, 'G'), Leaf, Leaf)
+let rec insert c t = match t with
+  | Leaf -> Node ((Red, c), Leaf, Leaf)
+  | Node ((Red, v), l, r) ->
+    if c == v then t
+      else if c > v then Node ((Red, v), l, insert c r) else Node ((Red, v), insert c l, r)
+    ;;
 
-RedBlackData.print @@ RedBlackData.dataset 0;;
-
-CharData.print @@ CharData.dataset 0;;
-
-CharData.print @@ CharData.dataset 1;;
-
-
+RedBlackTree.print @@ insert 'A' data;;
