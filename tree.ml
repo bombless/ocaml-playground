@@ -32,28 +32,11 @@ let rec get_depth = function
   | Leaf -> 0
   | Node (_, l, r) -> 1 + max (get_depth l) (get_depth r)
 
-let rec leftmost_leaf_nodes_padding_of_depth = function
+let rec leftmost_padding_of_depth = function
   | 0 -> 0
   | 1 -> 0
-  | 2 -> 1
-  | x -> 2 * leftmost_leaf_nodes_padding_of_depth (x - 1)
-
-let rec leftmost_three_spaces_padding_of_depth = function
-  | 0 -> 0
-  | 1 -> 0
-  | 2 -> 1
-  | 3 -> 3
-  | x -> 2 * leftmost_three_spaces_padding_of_depth (x - 1)
-
-let rec leftmost_one_space_padding_of_depth = function
-  | 0 -> 0
-  | 1 -> 0
-  | 2 -> 0
-  | 3 -> 0
-  | 4 -> 1
-  | x -> 2 * leftmost_one_space_padding_of_depth (x - 1)
-
-let leftmost_padding_of_depth n = leftmost_leaf_nodes_padding_of_depth n + leftmost_three_spaces_padding_of_depth n + leftmost_one_space_padding_of_depth n
+  | 2 -> 2
+  | x -> 1 + 2 * leftmost_padding_of_depth (x - 1)
 
 (* n >= 1 *)
 let normal_node_padding_of_depth n = if n < 2 then 3 else leftmost_padding_of_depth (n + 1)
@@ -79,10 +62,10 @@ let rec generate_next_line (line: (int * 'a element) list) first : (int * 'a ele
   match line with
     | [] -> []
     | ((n, c)::t) -> match c with
-    | VisibleLeft -> (n - 1, VisibleLeft) :: generate_next_line t false
-    | VirtualLeft -> (n - 1, VirtualLeft) :: generate_next_line t false
-    | VisibleRight -> (n + 2, VisibleRight) :: generate_next_line t false
-    | VirtualRight -> (n + 1, VirtualRight) :: generate_next_line t false
+    | VisibleLeft -> (n - offset, VisibleLeft) :: generate_next_line t false
+    | VirtualLeft -> (n - offset, VirtualLeft) :: generate_next_line t false
+    | VisibleRight -> (n + offset, VisibleRight) :: generate_next_line t false
+    | VirtualRight -> (n + offset, VirtualRight) :: generate_next_line t false
     | VisibleNode _ -> (n - offset, VisibleLeft) :: (1, VisibleRight) :: generate_next_line t false
     | VirtualNode -> (n - offset, VirtualLeft) :: (1, VirtualRight) :: generate_next_line t false
   
@@ -105,7 +88,11 @@ let rec list_of_nodes lst depth =
     lst :: list_of_nodes children (depth - 1)
 
 let lines_of_nodes (x: (int * 'a option) tree list) : (int * 'a element) list list = match x with
-  | (item::_) -> let first_line = generate_first_line x in first_line :: generate_lines first_line (get_depth item - 1)
+  | (item::_) ->
+    let depth = get_depth item in
+    let count_down = max 0 (leftmost_padding_of_depth depth - leftmost_padding_of_depth (depth - 1) - 1) in
+    let first_line = generate_first_line x in
+    first_line :: generate_lines first_line count_down
   | _ -> []
   
 
@@ -203,7 +190,6 @@ let big_big_tree =
   let nj = node 'J' nh nl in
   let np = node 'P' no nq in
   let nt = node 'T' ns nu in
-  let nj = node 'J' nh nl in
   let nr = node 'R' np nt in
   let nn = node 'N' nj nr in
   let nf = node 'F' n7 nn in
