@@ -2,7 +2,7 @@
 open Option
 
 type color = Red | Black
-type 'a element = VirtualLeft | VirtualRight | VirtualNode | VisibleNode of 'a | VisibleLeft | VisibleRight
+type 'a element = VirtualLeft | VirtualRight | VirtualNode | VisibleNode of 'a * bool * bool | VisibleLeft | VisibleRight
 
 type 'a tree = Leaf | Node of 'a * 'a tree * 'a tree
 
@@ -50,10 +50,14 @@ let rec get_padding_tree (t : 'a tree) depth is_left is_leftmost : (int * 'a) tr
       else if is_left && depth == 1 then 1 else normal_node_padding_of_depth depth in
     Node ((padding, v), get_padding_tree l (depth - 1) true is_leftmost, get_padding_tree r (depth - 1) false false)
 
+let rec is_visual_leaf = function
+  | Leaf -> true
+  | Node ((_, Some _), _, _) -> false
+  | Node ((_, None), _, _) -> true
 
 let rec generate_first_line (lst : ((int * 'a option) tree list)) = match lst with
   | [] -> []
-  | (Node ((p, Some c), _, _) as x::t) -> (p, VisibleNode c) :: generate_first_line t
+  | (Node ((p, Some c), l, r) as x::t) -> (p, VisibleNode (c, is_visual_leaf l, is_visual_leaf r)) :: generate_first_line t
   | (Node ((p, None), _, _) as x::t) -> (p, VirtualNode) :: generate_first_line t
   | (Leaf::t) -> generate_first_line t
 
@@ -66,7 +70,7 @@ let rec generate_next_line (line: (int * 'a element) list) first : (int * 'a ele
     | VirtualLeft -> (n - offset, VirtualLeft) :: generate_next_line t false
     | VisibleRight -> (n + offset, VisibleRight) :: generate_next_line t false
     | VirtualRight -> (n + offset, VirtualRight) :: generate_next_line t false
-    | VisibleNode _ -> (n - offset, VisibleLeft) :: (1, VisibleRight) :: generate_next_line t false
+    | VisibleNode (_, left_is_leaf, right_is_leaf) -> (n - offset, if left_is_leaf then VirtualLeft else VisibleLeft) :: (1, if right_is_leaf then VirtualRight else VisibleRight) :: generate_next_line t false
     | VirtualNode -> (n - offset, VirtualLeft) :: (1, VirtualRight) :: generate_next_line t false
   
 let rec generate_lines nodes count_down = match count_down with
@@ -112,7 +116,7 @@ end) =
 struct
   let rec print_line = function
     | [] -> print_char '\n'
-    | ((n, VisibleNode c)::t) -> print_string (String.make n ' '); Tree.print_node c; print_line t
+    | ((n, VisibleNode (c, _, _))::t) -> print_string (String.make n ' '); Tree.print_node c; print_line t
     | ((n, VisibleLeft)::t) -> print_string (String.make n ' '); print_char '/'; print_line t
     | ((n, VisibleRight)::t) -> print_string (String.make n ' '); print_char '\\'; print_line t
     | ((n, _)::t) -> print_string (String.make n ' '); print_char ' '; print_line t
@@ -198,7 +202,13 @@ let rec insert c t = match t with
   | Leaf -> Node ((Red, c), Leaf, Leaf)
   | Node ((Red, v), l, r) ->
     if c == v then t
-      else if c > v then Node ((Red, v), l, insert c r) else Node ((Red, v), insert c l, r)
-    ;;
+      else if c > v then Node ((Red, v), l, insert c r) else Node ((Black, c), l, insert v r)
+  | Node ((Black, v), l, r) ->
+    if c == v then t
+    else if c > v then Node ((Black, c), insert v l, r) else Node ((Black, c), l, insert v r)
+;;
 
 RedBlackTree.print @@ insert 'A' data;;
+RedBlackTree.print @@ insert 'C' @@ insert 'A' data;;
+RedBlackTree.print @@ insert 'H'  @@ insert 'C' @@ insert 'A' data;;
+RedBlackTree.print @@ insert 'H' data;;
