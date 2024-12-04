@@ -1,6 +1,3 @@
-
-open Option
-
 type color = Red | Black
 type 'a element = VirtualLeft | VirtualRight | VirtualNode | VisibleNode of 'a * bool * bool | VisibleLeft | VisibleRight
 
@@ -78,8 +75,8 @@ let rec generate_lines nodes count_down = match count_down with
   | n -> let new_line = generate_next_line nodes true in new_line :: generate_lines new_line (n - 1)
 
 let rec as_full_tree t depth = match t with
-  | Leaf -> if depth > 0 then Node (none, as_full_tree Leaf (depth - 1), as_full_tree Leaf (depth - 1)) else Leaf
-  | Node (v, l, r) -> Node (some v, as_full_tree l (depth - 1), as_full_tree r (depth - 1))
+  | Leaf -> if depth > 0 then Node (Option.none, as_full_tree Leaf (depth - 1), as_full_tree Leaf (depth - 1)) else Leaf
+  | Node (v, l, r) -> Node (Option.some v, as_full_tree l (depth - 1), as_full_tree r (depth - 1))
 
 let rec children_of_nodes = function
   | [] -> []
@@ -197,18 +194,156 @@ CharTree.print big_tree;;
 CharTree.print big_big_tree;;
 RedBlackTree.print root;;
 
-let data = Node ((Red, 'G'), Leaf, Leaf)
-let rec insert c t = match t with
-  | Leaf -> Node ((Red, c), Leaf, Leaf)
-  | Node ((Red, v), l, r) ->
-    if c == v then t
-      else if c > v then Node ((Red, v), l, insert c r) else Node ((Black, c), l, insert v r)
-  | Node ((Black, v), l, r) ->
-    if c == v then t
-    else if c > v then Node ((Black, c), insert v l, r) else Node ((Black, c), l, insert v r)
-;;
+module Char = struct
+  let data = Node ('G', Leaf, Leaf)
+  let rec insert c = function
+    | Leaf -> Node (c, Leaf, Leaf)
+    | Node (v, l, r) as t -> if c == v then t else if c > v then Node (v, l, insert c r) else Node (v, insert c l, r)
+  let print = CharTree.print
+end;;
 
-RedBlackTree.print @@ insert 'A' data;;
-RedBlackTree.print @@ insert 'C' @@ insert 'A' data;;
-RedBlackTree.print @@ insert 'H'  @@ insert 'C' @@ insert 'A' data;;
-RedBlackTree.print @@ insert 'H' data;;
+Char.(print @@ insert 'A' data);;
+Char.(print @@ insert 'H' @@ insert 'A' data);;
+Char.(print @@ insert 'C' @@ insert 'H' @@ insert 'A' data);;
+
+
+module RedBlackDemoPrint = Printer (struct
+  type t = color * char * int
+  let red_text = "\027[31m"
+  let reset_color = "\027[0m" 
+  let print_node = function
+    | (Red, c, _) -> Printf.printf "%s%c%s" red_text c reset_color
+    | (_, c, _) -> print_char(c)
+end);;
+
+module RedBlackDemoPrintOrder = Printer (struct
+  type t = color * char * int
+  let print_node = function
+    | (_, _, o) -> print_int o
+end);;
+
+module RedBlackDemo = struct
+  let demo1 =
+    let a = Node ((Black, 'a', 0), Leaf, Leaf) in
+    let b = Node ((Black, 'b', 2), Leaf, Leaf) in
+    let x = Node ((Red, 'x', 1), a, b) in
+    let c = Node ((Black, 'c', 4), Leaf, Leaf) in
+    let y = Node ((Red, 'y', 3), x, c) in
+    let d = Node ((Black, 'd', 6), Leaf, Leaf) in
+    let z = Node ((Black, 'z', 5), y, d) in
+    z
+  
+  let demo2 =
+    let b = Node ((Black, 'b', 2), Leaf, Leaf) in
+    let c = Node ((Black, 'c', 4), Leaf, Leaf) in
+    let y = Node ((Red, 'y', 3), b, c) in
+    let a = Node ((Black, 'a', 0), Leaf, Leaf) in
+    let x = Node ((Red, 'x', 1), a, y) in
+    let d = Node ((Black, 'd', 6), Leaf, Leaf) in
+    let z = Node ((Black, 'z', 5), x, d) in
+    z
+  
+  let demo3 =
+    let a = Node ((Black, 'a', 0), Leaf, Leaf) in
+    let b = Node ((Black, 'b', 2), Leaf, Leaf) in
+    let c = Node ((Black, 'c', 4), Leaf, Leaf) in
+    let d = Node ((Black, 'd', 6), Leaf, Leaf) in
+    let z = Node ((Red, 'z', 5), c, d) in
+    let y = Node ((Red, 'y', 3), b, z) in
+    let x = Node ((Black, 'x', 1), a, y) in
+    x
+  
+  let demo4 =
+    let a = Node ((Black, 'a', 0), Leaf, Leaf) in
+    let b = Node ((Black, 'b', 2), Leaf, Leaf) in
+    let c = Node ((Black, 'c', 4), Leaf, Leaf) in
+    let d = Node ((Black, 'd', 6), Leaf, Leaf) in
+    let y = Node ((Red, 'y', 3), b, c) in
+    let z = Node ((Red, 'z', 5), y, d) in
+    let x = Node ((Black, 'x', 1), a, z) in
+    x
+
+  let greater_than x node = match node with
+    | Leaf -> false
+    | Node ((_, v), _, _) -> x > v
+
+  let less_than x node = match node with
+    | Leaf -> false
+    | Node ((_, v), _, _) -> x < v
+
+  let is_red = function
+    | Node ((Red, _), _, _) -> true
+    | _ -> false
+  
+  let left_is_red = function
+    | Node (_, Node ((Red, x), a, b), _) -> Option.some (x, a, b)
+    | _ -> Option.none
+  
+  let rec fix = function
+    | Leaf -> Leaf
+    | Node ((Black, z, zo), Node ((Red, y, yo), Node ((Red, x, xo), a, b), c), d) ->
+      Node ((Red, y, yo), Node ((Black, x, xo), a, b), Node ((Black, z, zo), c, d))
+    | Node ((Black, z, zo), Node ((Red, x, xo), a, Node ((Red, y, yo), b, c)), d) ->
+      Node ((Red, y, yo), Node ((Black, x, xo), a, b), Node ((Black, z, zo), c, d))
+    | Node ((Black, x, xo), a, Node ((Red, y, yo), b, Node ((Red, z, zo), c, d))) ->
+      Node ((Red, y, yo), Node ((Black, x, xo), a, b), Node ((Black, z, zo), c ,d))
+    | Node ((Black, x, xo), a, Node ((Red, z, zo), Node ((Red, y, yo), b, c), d)) ->
+      Node ((Red, y, yo), Node ((Black, x, xo), a, b), Node ((Black, z, zo), c, d))
+
+
+  let rec insert c l v = function
+    | Leaf -> Node ((c, l, v), Leaf, Leaf)
+    | Node ((nc, nl, nv), lt, rt) as n ->
+      if v == nv then n
+      else
+        if v > nv then Node ((nc, nl, nv), lt, insert c l v rt)
+        else Node ((nc, nl, nv), insert c l v lt, rt)
+  ;;
+end;;
+
+print_endline "*********** demo 1 ***********";;
+
+RedBlackDemoPrintOrder.print RedBlackDemo.demo1;;
+
+RedBlackDemoPrint.print RedBlackDemo.demo1;;
+
+RedBlackDemoPrintOrder.print @@ RedBlackDemo.fix RedBlackDemo.demo1;;
+
+RedBlackDemoPrint.print @@ RedBlackDemo.fix RedBlackDemo.demo1;;
+
+print_endline "*********** demo 2 ***********";;
+
+RedBlackDemoPrintOrder.print RedBlackDemo.demo2;;
+
+RedBlackDemoPrint.print RedBlackDemo.demo2;;
+
+RedBlackDemoPrintOrder.print @@ RedBlackDemo.fix RedBlackDemo.demo2;;
+
+RedBlackDemoPrint.print @@ RedBlackDemo.fix RedBlackDemo.demo2;;
+
+print_endline "*********** demo 3 ***********";;
+
+RedBlackDemoPrintOrder.print RedBlackDemo.demo3;;
+
+RedBlackDemoPrint.print RedBlackDemo.demo3;;
+
+RedBlackDemoPrintOrder.print @@ RedBlackDemo.fix RedBlackDemo.demo3;;
+
+RedBlackDemoPrint.print @@ RedBlackDemo.fix RedBlackDemo.demo3;;
+
+print_endline "*********** demo 4 ***********";;
+
+RedBlackDemoPrintOrder.print RedBlackDemo.demo4;;
+
+RedBlackDemoPrint.print RedBlackDemo.demo4;;
+
+RedBlackDemoPrintOrder.print @@ RedBlackDemo.fix RedBlackDemo.demo4;;
+
+RedBlackDemoPrint.print @@ RedBlackDemo.fix RedBlackDemo.demo4;;
+
+(* RedBlack.(print @@ insert 'A' data);;
+RedBlack.(print @@ insert 'C' @@ insert 'A' data);;
+RedBlack.(print @@ insert 'H' @@ insert 'C' @@ insert 'A' data);;
+RedBlack.(print @@ insert 'C' data);;
+RedBlack.(print @@ insert 'H' @@ insert 'C' data);;
+RedBlack.(print @@ insert 'H' data);; *)
