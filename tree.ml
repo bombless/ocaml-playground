@@ -40,7 +40,7 @@ let normal_node_padding_of_depth n = if n < 2 then 3 else leftmost_padding_of_de
 
 let rec get_padding_tree (t : 'a tree) depth is_left is_leftmost : (int * 'a) tree = match t with
   | Leaf -> Leaf
-  | Node (v, l, r) as x ->
+  | Node (v, l, r) ->
     let padding =
       if is_leftmost
       then leftmost_padding_of_depth depth
@@ -54,8 +54,8 @@ let rec is_visual_leaf = function
 
 let rec generate_first_line (lst : ((int * 'a option) tree list)) = match lst with
   | [] -> []
-  | (Node ((p, Some c), l, r) as x::t) -> (p, VisibleNode (c, is_visual_leaf l, is_visual_leaf r)) :: generate_first_line t
-  | (Node ((p, None), _, _) as x::t) -> (p, VirtualNode) :: generate_first_line t
+  | (Node ((p, Some c), l, r)::t) -> (p, VisibleNode (c, is_visual_leaf l, is_visual_leaf r)) :: generate_first_line t
+  | (Node ((p, None), _, _)::t) -> (p, VirtualNode) :: generate_first_line t
   | (Leaf::t) -> generate_first_line t
 
 let rec generate_next_line (line: (int * 'a element) list) first : (int * 'a element) list =
@@ -113,7 +113,7 @@ end) =
 struct
   let rec print_line = function
     | [] -> print_char '\n'
-    | ((n, VisibleNode (c, _, _))::t) -> print_string (String.make n ' '); Tree.print_node c; print_line t
+    | ((n, VisibleNode (c, _, _))::t) -> print_string (String.init n (fun _ -> ' ')); Tree.print_node c; print_line t
     | ((n, VisibleLeft)::t) -> print_string (String.make n ' '); print_char '/'; print_line t
     | ((n, VisibleRight)::t) -> print_string (String.make n ' '); print_char '\\'; print_line t
     | ((n, _)::t) -> print_string (String.make n ' '); print_char ' '; print_line t
@@ -206,6 +206,14 @@ Char.(print @@ insert 'A' data);;
 Char.(print @@ insert 'H' @@ insert 'A' data);;
 Char.(print @@ insert 'C' @@ insert 'H' @@ insert 'A' data);;
 
+module RedBlackCharPrint = Printer (struct
+  type t = color * char
+  let red_text = "\027[31m"
+  let reset_color = "\027[0m" 
+  let print_node = function
+    | (Red, c) -> Printf.printf "%s%c%s" red_text c reset_color
+    | (_, c) -> print_char(c)
+end);;
 
 module RedBlackDemoPrint = Printer (struct
   type t = color * (char * int)
@@ -227,27 +235,53 @@ module Ordered (Value: sig
   val equals : t -> t -> bool
   val less_than : t -> t -> bool
 end) = struct
-  let rec insert v = function
-    | Leaf -> Node (v, Leaf, Leaf)
-    | Node (nv, lt, rt) as n ->
+  let balance = function
+  | (Black, z), Node ((Red, y), Node ((Red, x), a, b), c), d
+  | (Black, z), Node ((Red, x), a, Node ((Red, y), b, c)), d
+  | (Black, x), a, Node ((Red, y), b, Node ((Red, z), c, d))
+  | (Black, x), a, Node ((Red, z), Node ((Red, y), b, c), d) ->
+    Node ((Red, y), Node ((Black, x), a, b), Node ((Black, z), c, d))
+  | (n, l, r) -> Node (n, l, r)
+
+  let black_root = function
+    | Leaf -> Leaf
+    | Node ((_, v), l, r) -> Node ((Black, v), l, r)
+
+  let rec insert_aux v = function
+    | Leaf -> Node ((Red, v), Leaf, Leaf)
+    | Node ((c, nv), lt, rt) as n ->
       if Value.equals v nv then n
       else
         if Value.less_than v nv
-        then Node (nv, insert v lt, rt)
-        else Node (nv, lt, insert v rt)
+        then balance ((c, nv), insert_aux v lt, rt)
+        else balance ((c, nv), lt, insert_aux v rt)
   ;;
+
+  let insert v t = black_root @@ insert_aux v t
+
+  let rec mem v = function
+    | Leaf -> false
+    | Node ((_, nv), lt, rt) ->
+      if Value.equals v nv then true
+      else if Value.less_than v nv then mem v lt else mem v rt
 end;;
 
 module LabledIntTree = Ordered (struct
-  type t = color * char * int
-  let equals x = function (_, _, yv) -> match x with (_, _, xv) -> xv == yv
-  let less_than x = function (_, _, yv) -> match x with (_, _, xv) -> xv < yv
+  type t = char * int
+  let equals x = function (_, yv) -> match x with (_, xv) -> xv == yv
+  let less_than x = function (_, yv) -> match x with ( _, xv) -> xv < yv
 end);;
 
 module LabelTree = Ordered (struct
-  type t = color * char
-  let equals x = function (_, yv) -> match x with (_, xv) -> xv == yv
-  let less_than x = function (_, yv) -> match x with (_, xv) -> xv < yv
+  type t = char
+  let equals = (=)
+  let less_than = (<)
+end);;
+
+module StringTree = Ordered (struct
+  type t = string
+  let equals x = function yv -> match x with xv -> xv == yv
+  let less_than x = function yv -> match x with xv -> xv < yv
 end);;
 
 let rec fix = function
@@ -305,23 +339,6 @@ module RedBlackDemo = struct
     let x = Node ((Black, ('x', 1)), a, z) in
     x
 
-  let greater_than x node = match node with
-    | Leaf -> false
-    | Node ((_, v), _, _) -> x > v
-
-  let less_than x node = match node with
-    | Leaf -> false
-    | Node ((_, v), _, _) -> x < v
-
-  let is_red = function
-    | Node ((Red, _), _, _) -> true
-    | _ -> false
-  
-  let left_is_red = function
-    | Node (_, Node ((Red, x), a, b), _) -> Option.some (x, a, b)
-    | _ -> Option.none
-  
-
 
 end;;
 
@@ -365,23 +382,9 @@ RedBlackDemoPrintOrder.print @@ fix RedBlackDemo.demo4;;
 
 RedBlackDemoPrint.print @@ fix RedBlackDemo.demo4;;
 
-module RedBlack = struct
-  let print = RedBlackTree.print
-  let insert c t =
-    let r = LabelTree.insert (Red, c) t in
-    (* print_endline "before fix"; *)
-    (* RedBlackTree.print r; *)
-    (* print_endline "after fix"; *)
-    let r = fix r in
-    (* RedBlackTree.print r; *)
-    r;;
-end;;
 
 let data = Node ((Red, 'G'), Leaf, Leaf);;
 
-RedBlack.(print @@ insert 'A' data);;
-RedBlack.(print @@ insert 'C' @@ insert 'A' data);;
-RedBlack.(print @@ insert 'H' @@ insert 'C' @@ insert 'A' data);;
-(* RedBlack.(print @@ insert 'C' data);;
-RedBlack.(print @@ insert 'H' @@ insert 'C' data);;
-RedBlack.(print @@ insert 'H' data);; *)
+RedBlackCharPrint.print @@ LabelTree.insert 'A' data;;
+RedBlackCharPrint.print @@ LabelTree.insert 'C' @@ LabelTree.insert 'A' data;;
+RedBlackCharPrint.print @@ LabelTree.insert 'H' @@ LabelTree.insert 'C' @@ LabelTree.insert 'A' data;;

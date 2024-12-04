@@ -1,2 +1,9 @@
 .vscode 
 output.txt 
+*.cmi 
+*.cmo 
+*.cmx 
+*.o 
+a.out 
+s 
+string 
