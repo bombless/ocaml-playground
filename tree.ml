@@ -222,6 +222,34 @@ module RedBlackDemoPrintOrder = Printer (struct
     | (_, _, o) -> print_int o
 end);;
 
+module Ordered (Value: sig
+  type t
+  val equals : t -> t -> bool
+  val less_than : t -> t -> bool
+end) = struct
+  let rec insert v = function
+    | Leaf -> Node (v, Leaf, Leaf)
+    | Node (nv, lt, rt) as n ->
+      if Value.equals v nv then n
+      else
+        if Value.less_than v nv
+        then Node (nv, insert v lt, rt)
+        else Node (nv, lt, insert v rt)
+  ;;
+end;;
+
+module LabledIntTree = Ordered (struct
+  type t = color * char * int
+  let equals x = function (_, _, yv) -> match x with (_, _, xv) -> xv == yv
+  let less_than x = function (_, _, yv) -> match x with (_, _, xv) -> xv < yv
+end);;
+
+module LabelTree = Ordered (struct
+  type t = color * char
+  let equals x = function (_, yv) -> match x with (_, xv) -> xv == yv
+  let less_than x = function (_, yv) -> match x with (_, xv) -> xv < yv
+end);;
+
 module RedBlackDemo = struct
   let demo1 =
     let a = Node ((Black, 'a', 0), Leaf, Leaf) in
@@ -291,14 +319,6 @@ module RedBlackDemo = struct
       Node ((Red, y, yo), Node ((Black, x, xo), a, b), Node ((Black, z, zo), c, d))
 
 
-  let rec insert c l v = function
-    | Leaf -> Node ((c, l, v), Leaf, Leaf)
-    | Node ((nc, nl, nv), lt, rt) as n ->
-      if v == nv then n
-      else
-        if v > nv then Node ((nc, nl, nv), lt, insert c l v rt)
-        else Node ((nc, nl, nv), insert c l v lt, rt)
-  ;;
 end;;
 
 print_endline "*********** demo 1 ***********";;
