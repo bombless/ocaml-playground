@@ -208,18 +208,18 @@ Char.(print @@ insert 'C' @@ insert 'H' @@ insert 'A' data);;
 
 
 module RedBlackDemoPrint = Printer (struct
-  type t = color * char * int
+  type t = color * (char * int)
   let red_text = "\027[31m"
   let reset_color = "\027[0m" 
   let print_node = function
-    | (Red, c, _) -> Printf.printf "%s%c%s" red_text c reset_color
-    | (_, c, _) -> print_char(c)
+    | (Red, (c, _)) -> Printf.printf "%s%c%s" red_text c reset_color
+    | (_, (c, _)) -> print_char(c)
 end);;
 
 module RedBlackDemoPrintOrder = Printer (struct
-  type t = color * char * int
+  type t = color * (char * int)
   let print_node = function
-    | (_, _, o) -> print_int o
+    | (_, (_, o)) -> print_int o
 end);;
 
 module Ordered (Value: sig
@@ -250,45 +250,59 @@ module LabelTree = Ordered (struct
   let less_than x = function (_, yv) -> match x with (_, xv) -> xv < yv
 end);;
 
+let rec fix = function
+  | Leaf -> Leaf
+  | Node ((Black, z), Node ((Red, y), Node ((Red, x), a, b), c), d) ->
+    Node ((Red, y), Node ((Black, x), a, b), Node ((Black, z), c, d))
+  | Node ((Black, z), Node ((Red, x), a, Node ((Red, y), b, c)), d) ->
+    Node ((Red, y), Node ((Black, x), a, b), Node ((Black, z), c, d))
+  | Node ((Black, x), a, Node ((Red, y), b, Node ((Red, z), c, d))) ->
+    Node ((Red, y), Node ((Black, x), a, b), Node ((Black, z), c ,d))
+  | Node ((Black, x), a, Node ((Red, z), Node ((Red, y), b, c), d)) ->
+    Node ((Red, y), Node ((Black, x), a, b), Node ((Black, z), c, d))
+  | Node ((Red, y), Node ((Red, x), a, b), c) -> Node ((Black, y), Node ((Red, x), a, b), c)
+  | Node ((Red, x), a, Node ((Red, y), b, c)) -> Node ((Black, x), a, Node ((Red, y), b, c))
+  | Node (v, l, r) -> Node (v, fix l, fix r)
+
 module RedBlackDemo = struct
   let demo1 =
-    let a = Node ((Black, 'a', 0), Leaf, Leaf) in
-    let b = Node ((Black, 'b', 2), Leaf, Leaf) in
-    let x = Node ((Red, 'x', 1), a, b) in
-    let c = Node ((Black, 'c', 4), Leaf, Leaf) in
-    let y = Node ((Red, 'y', 3), x, c) in
-    let d = Node ((Black, 'd', 6), Leaf, Leaf) in
-    let z = Node ((Black, 'z', 5), y, d) in
+    let a = Node ((Black, ('a', 0)), Leaf, Leaf) in
+    let b = Node ((Black, ('b', 2)), Leaf, Leaf) in
+    let x = Node ((Red, ('x', 1)), a, b) in
+    let c = Node ((Black, ('c', 4)), Leaf, Leaf) in
+    let y = Node ((Red, ('y', 3)), x, c) in
+    let d = Node ((Black, ('d', 6)), Leaf, Leaf) in
+    let z = Node ((Black, ('z', 5)), y, d) in
     z
   
   let demo2 =
-    let b = Node ((Black, 'b', 2), Leaf, Leaf) in
-    let c = Node ((Black, 'c', 4), Leaf, Leaf) in
-    let y = Node ((Red, 'y', 3), b, c) in
-    let a = Node ((Black, 'a', 0), Leaf, Leaf) in
-    let x = Node ((Red, 'x', 1), a, y) in
-    let d = Node ((Black, 'd', 6), Leaf, Leaf) in
-    let z = Node ((Black, 'z', 5), x, d) in
+    let b = Node ((Black, ('b', 2)), Leaf, Leaf) in
+    let c = Node ((Black, ('c', 4)), Leaf, Leaf) in
+    let y = Node ((Red, ('y', 3)), b, c) in
+    let a = Node ((Black, ('a', 0)), Leaf, Leaf) in
+    let x = Node ((Red, ('x', 1)), a, y) in
+    let d = Node ((Black, ('d', 6)), Leaf, Leaf) in
+    let z = Node ((Black, ('z', 5)), x, d) in
     z
   
   let demo3 =
-    let a = Node ((Black, 'a', 0), Leaf, Leaf) in
-    let b = Node ((Black, 'b', 2), Leaf, Leaf) in
-    let c = Node ((Black, 'c', 4), Leaf, Leaf) in
-    let d = Node ((Black, 'd', 6), Leaf, Leaf) in
-    let z = Node ((Red, 'z', 5), c, d) in
-    let y = Node ((Red, 'y', 3), b, z) in
-    let x = Node ((Black, 'x', 1), a, y) in
+    let a = Node ((Black, ('a', 0)), Leaf, Leaf) in
+    let b = Node ((Black, ('b', 2)), Leaf, Leaf) in
+    let c = Node ((Black, ('c', 4)), Leaf, Leaf) in
+    let d = Node ((Black, ('d', 6)), Leaf, Leaf) in
+    let z = Node ((Red, ('z', 5)), c, d) in
+    let y = Node ((Red, ('y', 3)), b, z) in
+    let x = Node ((Black, ('x', 1)), a, y) in
     x
   
   let demo4 =
-    let a = Node ((Black, 'a', 0), Leaf, Leaf) in
-    let b = Node ((Black, 'b', 2), Leaf, Leaf) in
-    let c = Node ((Black, 'c', 4), Leaf, Leaf) in
-    let d = Node ((Black, 'd', 6), Leaf, Leaf) in
-    let y = Node ((Red, 'y', 3), b, c) in
-    let z = Node ((Red, 'z', 5), y, d) in
-    let x = Node ((Black, 'x', 1), a, z) in
+    let a = Node ((Black, ('a', 0)), Leaf, Leaf) in
+    let b = Node ((Black, ('b', 2)), Leaf, Leaf) in
+    let c = Node ((Black, ('c', 4)), Leaf, Leaf) in
+    let d = Node ((Black, ('d', 6)), Leaf, Leaf) in
+    let y = Node ((Red, ('y', 3)), b, c) in
+    let z = Node ((Red, ('z', 5)), y, d) in
+    let x = Node ((Black, ('x', 1)), a, z) in
     x
 
   let greater_than x node = match node with
@@ -307,16 +321,6 @@ module RedBlackDemo = struct
     | Node (_, Node ((Red, x), a, b), _) -> Option.some (x, a, b)
     | _ -> Option.none
   
-  let rec fix = function
-    | Leaf -> Leaf
-    | Node ((Black, z, zo), Node ((Red, y, yo), Node ((Red, x, xo), a, b), c), d) ->
-      Node ((Red, y, yo), Node ((Black, x, xo), a, b), Node ((Black, z, zo), c, d))
-    | Node ((Black, z, zo), Node ((Red, x, xo), a, Node ((Red, y, yo), b, c)), d) ->
-      Node ((Red, y, yo), Node ((Black, x, xo), a, b), Node ((Black, z, zo), c, d))
-    | Node ((Black, x, xo), a, Node ((Red, y, yo), b, Node ((Red, z, zo), c, d))) ->
-      Node ((Red, y, yo), Node ((Black, x, xo), a, b), Node ((Black, z, zo), c ,d))
-    | Node ((Black, x, xo), a, Node ((Red, z, zo), Node ((Red, y, yo), b, c), d)) ->
-      Node ((Red, y, yo), Node ((Black, x, xo), a, b), Node ((Black, z, zo), c, d))
 
 
 end;;
@@ -327,9 +331,9 @@ RedBlackDemoPrintOrder.print RedBlackDemo.demo1;;
 
 RedBlackDemoPrint.print RedBlackDemo.demo1;;
 
-RedBlackDemoPrintOrder.print @@ RedBlackDemo.fix RedBlackDemo.demo1;;
+RedBlackDemoPrintOrder.print @@ fix RedBlackDemo.demo1;;
 
-RedBlackDemoPrint.print @@ RedBlackDemo.fix RedBlackDemo.demo1;;
+RedBlackDemoPrint.print @@ fix RedBlackDemo.demo1;;
 
 print_endline "*********** demo 2 ***********";;
 
@@ -337,9 +341,9 @@ RedBlackDemoPrintOrder.print RedBlackDemo.demo2;;
 
 RedBlackDemoPrint.print RedBlackDemo.demo2;;
 
-RedBlackDemoPrintOrder.print @@ RedBlackDemo.fix RedBlackDemo.demo2;;
+RedBlackDemoPrintOrder.print @@ fix RedBlackDemo.demo2;;
 
-RedBlackDemoPrint.print @@ RedBlackDemo.fix RedBlackDemo.demo2;;
+RedBlackDemoPrint.print @@ fix RedBlackDemo.demo2;;
 
 print_endline "*********** demo 3 ***********";;
 
@@ -347,9 +351,9 @@ RedBlackDemoPrintOrder.print RedBlackDemo.demo3;;
 
 RedBlackDemoPrint.print RedBlackDemo.demo3;;
 
-RedBlackDemoPrintOrder.print @@ RedBlackDemo.fix RedBlackDemo.demo3;;
+RedBlackDemoPrintOrder.print @@ fix RedBlackDemo.demo3;;
 
-RedBlackDemoPrint.print @@ RedBlackDemo.fix RedBlackDemo.demo3;;
+RedBlackDemoPrint.print @@ fix RedBlackDemo.demo3;;
 
 print_endline "*********** demo 4 ***********";;
 
@@ -357,13 +361,27 @@ RedBlackDemoPrintOrder.print RedBlackDemo.demo4;;
 
 RedBlackDemoPrint.print RedBlackDemo.demo4;;
 
-RedBlackDemoPrintOrder.print @@ RedBlackDemo.fix RedBlackDemo.demo4;;
+RedBlackDemoPrintOrder.print @@ fix RedBlackDemo.demo4;;
 
-RedBlackDemoPrint.print @@ RedBlackDemo.fix RedBlackDemo.demo4;;
+RedBlackDemoPrint.print @@ fix RedBlackDemo.demo4;;
 
-(* RedBlack.(print @@ insert 'A' data);;
+module RedBlack = struct
+  let print = RedBlackTree.print
+  let insert c t =
+    let r = LabelTree.insert (Red, c) t in
+    (* print_endline "before fix"; *)
+    (* RedBlackTree.print r; *)
+    (* print_endline "after fix"; *)
+    let r = fix r in
+    (* RedBlackTree.print r; *)
+    r;;
+end;;
+
+let data = Node ((Red, 'G'), Leaf, Leaf);;
+
+RedBlack.(print @@ insert 'A' data);;
 RedBlack.(print @@ insert 'C' @@ insert 'A' data);;
 RedBlack.(print @@ insert 'H' @@ insert 'C' @@ insert 'A' data);;
-RedBlack.(print @@ insert 'C' data);;
+(* RedBlack.(print @@ insert 'C' data);;
 RedBlack.(print @@ insert 'H' @@ insert 'C' data);;
 RedBlack.(print @@ insert 'H' data);; *)
