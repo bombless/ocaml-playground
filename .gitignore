@@ -7,3 +7,6 @@ output.txt
 a.out 
 s 
 string 
+*.obj 
+camlprog.exe 
+*.exe 
