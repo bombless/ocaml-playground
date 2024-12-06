@@ -1,3 +1,11 @@
+(*
+ * to play it in utop:
+ * $ ocamlc -c tree.ml
+ * $ utop
+ * utop # #load "tree.cmo";;
+ * utop # #use "pretty_tree.ml";;
+ *)
+
 open Tree
 
 let rec height_of_depth = function
