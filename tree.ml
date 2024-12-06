@@ -63,12 +63,12 @@ let rec generate_next_line (line: (int * 'a element) list) first : (int * 'a ele
   match line with
     | [] -> []
     | ((n, c)::t) -> match c with
-    | VisibleLeft -> (n - offset, VisibleLeft) :: generate_next_line t false
-    | VirtualLeft -> (n - offset, VirtualLeft) :: generate_next_line t false
-    | VisibleRight -> (n + offset, VisibleRight) :: generate_next_line t false
-    | VirtualRight -> (n + offset, VirtualRight) :: generate_next_line t false
-    | VisibleNode (_, left_is_leaf, right_is_leaf) -> (n - offset, if left_is_leaf then VirtualLeft else VisibleLeft) :: (1, if right_is_leaf then VirtualRight else VisibleRight) :: generate_next_line t false
-    | VirtualNode -> (n - offset, VirtualLeft) :: (1, VirtualRight) :: generate_next_line t false
+      | VisibleLeft -> (n - offset, VisibleLeft) :: generate_next_line t false
+      | VirtualLeft -> (n - offset, VirtualLeft) :: generate_next_line t false
+      | VisibleRight -> (n + offset, VisibleRight) :: generate_next_line t false
+      | VirtualRight -> (n + offset, VirtualRight) :: generate_next_line t false
+      | VisibleNode (_, left_is_leaf, right_is_leaf) -> (n - offset, if left_is_leaf then VirtualLeft else VisibleLeft) :: (1, if right_is_leaf then VirtualRight else VisibleRight) :: generate_next_line t false
+      | VirtualNode -> (n - offset, VirtualLeft) :: (1, VirtualRight) :: generate_next_line t false
   
 let rec generate_lines nodes count_down = match count_down with
   | 0 -> []
