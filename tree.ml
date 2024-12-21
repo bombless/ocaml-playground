@@ -388,3 +388,18 @@ let data = Node ((Red, 'G'), Leaf, Leaf);;
 RedBlackCharPrint.print @@ LabelTree.insert 'A' data;;
 RedBlackCharPrint.print @@ LabelTree.insert 'C' @@ LabelTree.insert 'A' data;;
 RedBlackCharPrint.print @@ LabelTree.insert 'H' @@ LabelTree.insert 'C' @@ LabelTree.insert 'A' data;;
+
+let generate_random_uppercase_chars n =
+  Random.self_init ();
+  List.init n (fun _ ->
+    let ascii_code = Random.int 26 + 65 in
+    char_of_int ascii_code)
+
+let () =
+  let random_chars = generate_random_uppercase_chars 20 in
+  List.iter (fun c -> Printf.printf "%c; " c) random_chars;
+  print_char '\n';
+  let rec fold f acc = function
+  | [] -> acc
+  | h::t -> f h (fold f acc t) in
+  fold LabelTree.insert Leaf random_chars |> RedBlackCharPrint.print
