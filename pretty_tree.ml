@@ -94,6 +94,7 @@ struct
     | ((n, VisibleNode (c, _, _))::t) -> print_string (String.init n (fun _ -> ' ')); Tree.print_node c; print_line t
     | ((n, VisibleLeft)::t) -> print_string (String.make n ' '); print_char '/'; print_line t
     | ((n, VisibleRight)::t) -> print_string (String.make n ' '); print_char '\\'; print_line t
+    | ((n, VirtualNode)::t) -> print_string (String.make (n + 3) ' '); print_line t
     | ((n, _)::t) -> print_string (String.make n ' '); print_char ' '; print_line t
   ;;
   let rec print_helper = function
@@ -109,4 +110,19 @@ end);;
 
 let e = Node ('A', Node ('B', Leaf, Leaf), Leaf);;
 CharTree.print e;;
-CharTree.print big_big_tree;;
+CharTree.print Char.(insert 'D' @@ insert 'A' @@ insert 'F' @@ insert 'H' @@ insert 'E' Leaf);;
+
+open Random
+
+let generate_random_uppercase_chars n =
+  Random.self_init ();
+  List.init n (fun _ ->
+    let ascii_code = Random.int 26 + 65 in
+    char_of_int ascii_code)
+
+let () =
+  let random_chars = generate_random_uppercase_chars 16 in
+  let rec fold f acc = function
+  | [] -> acc
+  | h::t -> f h (fold f acc t) in
+  fold Char.insert Leaf random_chars |> CharTree.print
